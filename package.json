@@ -40,7 +40,7 @@
     "autoprefixer": "^10.5.0",
     "postcss": "^8.5.9",
     "tailwindcss": "^4.2.2",
-    "typescript": "^5.0.0"
+    "typescript": "^5.3.3"
   },
   "description": "This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).",
   "main": "index.js",
