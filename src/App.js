@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import Footer from './Footer'; // 引入我們剛寫好的小盒子
 import Header from './Header'; // 引入 Header 組件
 
 function App() {
   // 1. 道具與成本配置
   const itemConfig = [
-    { key: 'sp', name: 'SP初始化卷軸', bestWcPerUnit: 600 / 2 },
-    { key: 'ap', name: 'AP初始化卷軸', bestWcPerUnit: 800 / 2 },
-    { key: 'backpack', name: '神秘背包', bestWcPerUnit: 250 / 1 },
-    { key: 'charm', name: '護身符咒', bestWcPerUnit: 4500 / 110 },
-    { key: 'megaphone', name: '高效能喇叭', bestWcPerUnit: 1200 / 11 },
-    { key: 'megaphone_up', name: '高效能喇叭UP', bestWcPerUnit: 1400 / 11 },
-    { key: 'teleport_stone', name: '高級瞬移之石', bestWcPerUnit: 4000 / 110 },
-    { key: 'flower_rain', name: '漫天花雨', bestWcPerUnit: 3000 / 110 },
-    { key: 'snowflake', name: '飄雪結晶', bestWcPerUnit: 3000 / 110 },
-    { key: 'raid_ticket', name: '突襲額外獎勵票券', bestWcPerUnit: 1200 / 7 },
+    { key: 'sp', name: 'SP初始化卷軸', bestWcPerUnit: 600 / 2, color: '#D35400' }, // 經典橘
+    { key: 'ap', name: 'AP初始化卷軸', bestWcPerUnit: 800 / 2, color: '#E67E22' }, // 淺橘色
+    { key: 'backpack', name: '神秘背包', bestWcPerUnit: 250 / 1, color: '#8D6E63' }, // 皮革棕
+    { key: 'charm', name: '護身符咒', bestWcPerUnit: 4500 / 110, color: '#F1C40F' }, // 符咒黃
+    { key: 'megaphone', name: '高效能喇叭', bestWcPerUnit: 1200 / 11, color: '#27AE60' }, // 鮮豔綠
+    { key: 'megaphone_up', name: '高效能喇叭UP', bestWcPerUnit: 1400 / 11, color: '#2ECC71' }, // 淺亮綠
+    { key: 'teleport_stone', name: '高級瞬移之石', bestWcPerUnit: 4000 / 110, color: '#2980B9' }, // 魔法藍
+    { key: 'flower_rain', name: '漫天花雨', bestWcPerUnit: 3000 / 110, color: '#9B59B6' }, // 浪漫紫
+    { key: 'snowflake', name: '飄雪結晶', bestWcPerUnit: 3000 / 110, color: '#34495E' }, // 冰晶深灰
+    { key: 'raid_ticket', name: '突襲額外獎勵票券', bestWcPerUnit: 1200 / 7, color: '#E74C3C' }, // 警戒紅
   ];
 
   const [prices, setPrices] = useState(itemConfig.reduce((acc, item) => ({ ...acc, [item.key]: '' }), {}));
@@ -235,16 +235,30 @@ function App() {
 
           <div style={styles.card}>
             <h3 style={{ marginTop: 0, fontSize: '18px' }}>📊 市場價格波動趨勢</h3>
-            <div style={{ height: '300px', width: '100%', marginTop: '20px' }}>
+            {/* 高度從 300px 加大到 380px 給圖例留空間 */}
+            <div style={{ height: '380px', width: '100%', marginTop: '20px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={priceHistory}> {/* 🌟 資料來源換成真實的 priceHistory */}
+                <LineChart data={priceHistory} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F2EEE9" />
-                  <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fill: '#BCB0A1', fontSize: 12 }} /> {/* 🌟 X軸改抓 time */}
+                  <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fill: '#BCB0A1', fontSize: 12 }} />
                   <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 5px 15px rgba(0,0,0,0.1)' }} />
-                  {/* 🌟 畫出三條重要的價格走勢線 */}
-                  <Line type="monotone" dataKey="sp_price" name="SP卷軸" stroke="#D35400" strokeWidth={3} dot={{ r: 4, fill: '#D35400', stroke: '#fff' }} />
-                  <Line type="monotone" dataKey="backpack_price" name="神秘背包" stroke="#8D6E63" strokeWidth={3} dot={{ r: 4, fill: '#8D6E63', stroke: '#fff' }} />
-                  <Line type="monotone" dataKey="megaphone_price" name="高效能喇叭" stroke="#27AE60" strokeWidth={3} dot={{ r: 4, fill: '#27AE60', stroke: '#fff' }} />
+                  
+                  {/* 🌟 加上這行：圖表專用備註圖例 */}
+                  <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '12px', color: '#8D6E63' }} />
+                  
+                  {/* 🌟 讓程式自動讀取 itemConfig 畫出所有線條 */}
+                  {itemConfig.map((item) => (
+                    <Line 
+                      key={item.key}
+                      type="monotone" 
+                      dataKey={`${item.key}_price`} 
+                      name={item.name} 
+                      stroke={item.color} 
+                      strokeWidth={2.5} 
+                      dot={{ r: 3, fill: item.color, stroke: '#fff' }} 
+                      activeDot={{ r: 6 }}
+                    />
+                  ))}
                 </LineChart>
               </ResponsiveContainer>
             </div>
