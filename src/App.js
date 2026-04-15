@@ -24,6 +24,7 @@ function App() {
   const [isHovered, setIsHovered] = useState(null);
   // 記錄目前的登入使用者資料
   const [user, setUser] = useState(null);
+  const [priceHistory, setPriceHistory] = useState([]); // 🌟 新增這行：用來儲存圖表歷史資料
 
   // 當網頁一打開，立刻檢查玩家是否已經登入過
   useEffect(() => {
@@ -33,6 +34,7 @@ function App() {
 
     // --- 新增這行：網頁打開時先抓一次數據 ---
     fetchLatestPrices();
+    fetchPriceHistory();
 
     // 監聽登入/登出狀態的變化
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -81,6 +83,7 @@ function App() {
     } else {
       showToast('✅ 數據同步成功！', 'success');
       fetchLatestPrices(); // 成功後重新抓取數據
+      fetchPriceHistory(); // 有人送出新價格後，圖表立刻更新
     }
   };
 
@@ -106,6 +109,29 @@ function App() {
         newPrices[item.key] = data[`${item.key}_price`] || '';
       });
       setPrices(newPrices);
+    }
+  };
+
+  // 🌟 新增這整段函數：專門抓取最近 20 筆資料畫圖
+  const fetchPriceHistory = async () => {
+    const { data, error } = await supabase
+      .from('market_prices')
+      .select('*')
+      .order('created_at', { ascending: true }) // 圖表需要由舊到新排列
+      .limit(20);
+
+    if (error) {
+      console.error('抓取歷史紀錄失敗:', error.message);
+      return;
+    }
+
+    if (data) {
+      // 轉換資料格式，將時間轉為「時:分」，方便圖表顯示
+      const formattedData = data.map(record => ({
+        ...record,
+        time: new Date(record.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }));
+      setPriceHistory(formattedData);
     }
   };
 
@@ -211,11 +237,14 @@ function App() {
             <h3 style={{ marginTop: 0, fontSize: '18px' }}>📊 市場價格波動趨勢</h3>
             <div style={{ height: '300px', width: '100%', marginTop: '20px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[{ n: '04/13', p: 310 }, { n: '04/14', p: 325 }, { n: '04/15', p: 320 }]}>
+                <LineChart data={priceHistory}> {/* 🌟 資料來源換成真實的 priceHistory */}
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F2EEE9" />
-                  <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{ fill: '#BCB0A1', fontSize: 12 }} />
+                  <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fill: '#BCB0A1', fontSize: 12 }} /> {/* 🌟 X軸改抓 time */}
                   <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 5px 15px rgba(0,0,0,0.1)' }} />
-                  <Line type="monotone" dataKey="p" stroke="#D35400" strokeWidth={4} dot={{ r: 6, fill: '#D35400', stroke: '#fff' }} />
+                  {/* 🌟 畫出三條重要的價格走勢線 */}
+                  <Line type="monotone" dataKey="sp_price" name="SP卷軸" stroke="#D35400" strokeWidth={3} dot={{ r: 4, fill: '#D35400', stroke: '#fff' }} />
+                  <Line type="monotone" dataKey="backpack_price" name="神秘背包" stroke="#8D6E63" strokeWidth={3} dot={{ r: 4, fill: '#8D6E63', stroke: '#fff' }} />
+                  <Line type="monotone" dataKey="megaphone_price" name="高效能喇叭" stroke="#27AE60" strokeWidth={3} dot={{ r: 4, fill: '#27AE60', stroke: '#fff' }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
