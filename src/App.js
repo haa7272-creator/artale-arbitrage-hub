@@ -31,6 +31,9 @@ function App() {
     const session = supabase.auth.getSession();
     setUser(session?.user ?? null);
 
+    // --- 新增這行：網頁打開時先抓一次數據 ---
+    fetchLatestPrices();
+
     // 監聽登入/登出狀態的變化
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
@@ -57,8 +60,38 @@ function App() {
         [`${item.key}_price`]: parseFloat(prices[item.key]) || null,
       }), {}),
     ]);
-    if (error) showToast(`❌ 同步失敗: ${error.message}`, 'error');
-    else showToast('✅ 數據同步成功！', 'success');
+    if (error) {
+      showToast(`❌ 同步失敗: ${error.message}`, 'error');
+    } else {
+      showToast('✅ 數據同步成功！', 'success');
+      // 成功後重新抓取，確保顯示的是資料庫裡的數據
+      fetchLatestPrices(); 
+    }
+  };
+
+  // 從 Supabase 抓取最後一筆價格數據
+  const fetchLatestPrices = async () => {
+    // 抓取 market_prices 資料表，依照時間排序取最新的一筆
+    const { data, error } = await supabase
+      .from('market_prices')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      console.error('讀取數據失敗:', error.message);
+      return;
+    }
+
+    if (data) {
+      // 將資料庫的欄位轉換回我們 input 使用的格式
+      const newPrices = {};
+      itemConfig.forEach(item => {
+        newPrices[item.key] = data[`${item.key}_price`] || '';
+      });
+      setPrices(newPrices);
+    }
   };
 
   // 觸發 Discord 登入的函數
