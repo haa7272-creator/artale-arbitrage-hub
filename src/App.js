@@ -53,6 +53,13 @@ function App() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // --- 新增：如果沒登入，直接擋掉並彈出提示 ---
+    if (!user) {
+      showToast('⚠️ 請先登入 Discord 才能同步數據', 'error');
+      return;
+    }
+
     showToast('⏳ 正在同步數據...', 'loading');
     const { error } = await supabase.from('market_prices').insert([
       itemConfig.reduce((acc, item) => ({
@@ -65,7 +72,7 @@ function App() {
     } else {
       showToast('✅ 數據同步成功！', 'success');
       // 成功後重新抓取，確保顯示的是資料庫裡的數據
-      fetchLatestPrices(); 
+      fetchLatestPrices();
     }
   };
 
@@ -163,7 +170,20 @@ function App() {
                   </div>
                 ))}
               </div>
-              <button type="submit" style={styles.syncBtn}>SYNC DATA</button>
+              <button
+                type="submit"
+                disabled={!user} // 當沒登入時，讓按鈕點不動
+                style={{
+                  ...styles.syncBtn,
+                  // 如果有登入就用原本顏色，沒登入就變灰色 (#BCB0A1)
+                  backgroundColor: user ? '#D35400' : '#BCB0A1',
+                  cursor: user ? 'pointer' : 'not-allowed',
+                  boxShadow: user ? styles.syncBtn.boxShadow : 'none',
+                  opacity: user ? 1 : 0.8
+                }}
+              >
+                {user ? 'SYNC DATA' : '🔒 請先登入 DISCORD'}
+              </button>
             </form>
           </div>
         </aside>
