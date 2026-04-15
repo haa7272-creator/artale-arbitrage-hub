@@ -1,92 +1,169 @@
 import React, { useState, useEffect } from 'react';
-
-const INITIAL_ITEMS = [
-  { id: 'sp', name: 'SP (能力點卷軸)', wc: 50, price: 3200000 },
-  { id: 'ap', name: 'AP (技能點卷軸)', wc: 50, price: 3100000 },
-  { id: 'tele', name: '瞬移石', wc: 6, price: 380000 },
-  { id: 'raid', name: '突擊卷', wc: 15, price: 850000 },
-  { id: 'snow', name: '雪花', wc: 10, price: 450000 },
-];
+import { supabase } from './supabaseClient';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import Footer from './Footer'; // 引入我們剛寫好的小盒子
+import Header from './Header'; // 引入 Header 組件
 
 function App() {
-  const [items, setItems] = useState(INITIAL_ITEMS);
-  const [goal, setGoal] = useState(5); 
-  const [results, setResults] = useState([]);
+  // 1. 道具與成本配置
+  const itemConfig = [
+    { key: 'sp', name: 'SP初始化卷軸', bestWcPerUnit: 600 / 2 },
+    { key: 'ap', name: 'AP初始化卷軸', bestWcPerUnit: 800 / 2 },
+    { key: 'backpack', name: '神秘背包', bestWcPerUnit: 250 / 1 },
+    { key: 'charm', name: '護身符咒', bestWcPerUnit: 4500 / 110 },
+    { key: 'megaphone', name: '高效能喇叭', bestWcPerUnit: 1200 / 11 },
+    { key: 'megaphone_up', name: '高效能喇叭UP', bestWcPerUnit: 1400 / 11 },
+    { key: 'teleport_stone', name: '高級瞬移之石', bestWcPerUnit: 4000 / 110 },
+    { key: 'flower_rain', name: '漫天花雨', bestWcPerUnit: 3000 / 110 },
+    { key: 'snowflake', name: '飄雪結晶', bestWcPerUnit: 3000 / 110 },
+    { key: 'raid_ticket', name: '突襲額外獎勵票券', bestWcPerUnit: 1200 / 7 },
+  ];
 
+  const [prices, setPrices] = useState(itemConfig.reduce((acc, item) => ({ ...acc, [item.key]: '' }), {}));
+  const [toast, setToast] = useState({ show: false, message: '', type: '' });
+  const [isHovered, setIsHovered] = useState(null);
+  // 記錄目前的登入使用者資料
+  const [user, setUser] = useState(null);
+
+  // 當網頁一打開，立刻檢查玩家是否已經登入過
   useEffect(() => {
-    const calculated = items.map(item => ({
-      ...item,
-      roi: item.price / item.wc,
-    })).sort((a, b) => b.roi - a.roi);
-    setResults(calculated);
-  }, [items]);
+    // 取得目前的 session
+    const session = supabase.auth.getSession();
+    setUser(session?.user ?? null);
 
-  const handlePriceChange = (id, newPrice) => {
-    setItems(items.map(item => item.id === id ? { ...item, price: Number(newPrice) } : item));
+    // 監聽登入/登出狀態的變化
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: '' }), 3000);
   };
 
-  const bestItem = results[0];
+  const handleChange = (e) => {
+    setPrices({ ...prices, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    showToast('⏳ 正在同步數據...', 'loading');
+    const { error } = await supabase.from('market_prices').insert([
+      itemConfig.reduce((acc, item) => ({
+        ...acc,
+        [`${item.key}_price`]: parseFloat(prices[item.key]) || null,
+      }), {}),
+    ]);
+    if (error) showToast(`❌ 同步失敗: ${error.message}`, 'error');
+    else showToast('✅ 數據同步成功！', 'success');
+  };
+
+  // 觸發 Discord 登入的函數
+  const handleDiscordLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'discord',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+    if (error) showToast(`❌ 登入失敗: ${error.message}`, 'error');
+  };
+
+  const results = itemConfig
+    .map((item) => {
+      const marketPriceW = parseFloat(prices[item.key]);
+      if (!marketPriceW) return null;
+      const costTwd = item.bestWcPerUnit * 0.15;
+      const roi = (marketPriceW * 10000) / costTwd;
+      return { ...item, roi, marketPriceW };
+    })
+    .filter((res) => res !== null)
+    .sort((a, b) => b.roi - a.roi);
+
+  // --- 所有樣式定義 ---
+  const styles = {
+    container: { backgroundColor: '#FFFDF9', minHeight: '100vh', color: '#4E342E', fontFamily: '"Inter", sans-serif' },
+    header: { display: 'flex', justifyContent: 'space-between', padding: '20px 60px', backgroundColor: 'white', borderBottom: '1px solid #F2EEE9', alignItems: 'center' },
+    logoIcon: { backgroundColor: '#935E39', padding: '12px', borderRadius: '15px', color: 'white', fontSize: '20px', boxShadow: '0 4px 12px rgba(147,94,57,0.3)' },
+    main: { display: 'grid', gridTemplateColumns: '340px 1fr', gap: '40px', padding: '40px 60px' },
+    card: { backgroundColor: 'white', padding: '30px', borderRadius: '24px', boxShadow: '0 10px 40px rgba(78,52,46,0.04)', border: '1px solid #F2EEE9' },
+    inputField: { width: '100%', padding: '14px', marginTop: '8px', borderRadius: '14px', border: '1.5px solid #F0EAE2', backgroundColor: '#FCFAF8', fontSize: '14px', outline: 'none' },
+    syncBtn: { width: '100%', backgroundColor: '#D35400', color: 'white', border: 'none', padding: '16px', borderRadius: '16px', fontWeight: 'bold', cursor: 'pointer', marginTop: '25px', boxShadow: '0 6px 20px rgba(211,84,0,0.25)', transition: 'all 0.2s' },
+    toast: { position: 'fixed', top: '30px', left: '50%', transform: 'translateX(-50%)', padding: '12px 24px', borderRadius: '12px', color: 'white', fontWeight: 'bold', zIndex: 1000, backgroundColor: toast.type === 'error' ? '#E74C3C' : toast.type === 'loading' ? '#F39C12' : '#27AE60', display: toast.show ? 'block' : 'none' },
+    // Footer 專用樣式
+    footerContainer: { padding: '0 60px 40px', marginTop: '60px' },
+    footerCard: { backgroundColor: 'white', borderRadius: '30px', padding: '30px 40px', border: '1px solid #F2EEE9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 10px 40px rgba(78,52,46,0.03)' },
+    discordBtn: { backgroundColor: '#5865F2', color: 'white', padding: '10px 22px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', fontWeight: '800', textDecoration: 'none', boxShadow: '0 6px 20px rgba(88,101,242,0.3)' },
+    instagramBtn: { backgroundColor: 'white', color: '#4E342E', padding: '10px 22px', borderRadius: '16px', border: '1px solid #F0EAE2', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', fontWeight: '800', textDecoration: 'none' },
+    versionPill: { backgroundColor: '#F5F0E9', color: '#8D6E63', padding: '8px 20px', borderRadius: '20px', fontSize: '12px', fontWeight: '800' }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 font-sans text-center">
-      <div className="max-w-4xl mx-auto mb-8">
-        <h1 className="text-3xl font-bold text-orange-600 flex items-center justify-center gap-2">
-          🍁 Artale 楓幣套利決策中心
-        </h1>
-        <p className="text-slate-400 mt-2 text-sm italic">延用 Raid Hub 介面風格</p>
-      </div>
+    <div style={styles.container}>
+      <div style={styles.toast}>{toast.message}</div>
 
-      <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-6 text-left">
-        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl">
-          <h2 className="text-xl font-bold mb-6 flex items-center gap-2 border-b border-slate-700 pb-2">💰 市場現價</h2>
-          <div className="space-y-4">
-            {items.map(item => (
-              <div key={item.id} className="flex items-center justify-between">
-                <span>{item.name}</span>
-                <input
-                  type="number"
-                  value={item.price}
-                  onChange={(e) => handlePriceChange(item.id, e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 w-32 text-right text-orange-400 outline-none"
-                />
+      <Header
+        user={user}
+        onLogin={handleDiscordLogin}
+        onLogout={async () => {
+          await supabase.auth.signOut();
+          showToast('👋 已安全登出系統', 'success');
+        }}
+      />
+
+      <main style={styles.main}>
+        <aside>
+          <div style={styles.card}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '25px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#D35400' }}></div>
+              <h3 style={{ fontSize: '12px', color: '#8D6E63', margin: 0, letterSpacing: '1px' }}>市場行情回報</h3>
+            </div>
+            <form onSubmit={handleSubmit}>
+              <div style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: '10px' }}>
+                {itemConfig.map((item) => (
+                  <div key={item.key} style={{ marginBottom: '18px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#BCB0A1' }}>{item.name}</label>
+                    <input type="number" step="0.1" name={item.key} value={prices[item.key]} onChange={handleChange} placeholder="輸入萬楓幣..." style={styles.inputField} />
+                  </div>
+                ))}
               </div>
-            ))}
+              <button type="submit" style={styles.syncBtn}>SYNC DATA</button>
+            </form>
           </div>
-          <div className="mt-10 pt-6 border-t border-slate-700">
-            <h2 className="text-xl font-bold mb-4">🎯 目標金額 (億)</h2>
-            <input
-              type="number"
-              value={goal}
-              onChange={(e) => setGoal(Number(e.target.value))}
-              className="w-full bg-slate-900 border-2 border-orange-600/50 rounded-lg py-3 text-center text-3xl font-black text-orange-500 outline-none"
-            />
-          </div>
-        </div>
+        </aside>
 
-        <div className="space-y-6">
-          <div className="bg-orange-600 rounded-xl p-6 shadow-2xl">
-            <h2 className="text-sm font-bold uppercase opacity-80">👑 建議換取項目</h2>
-            <div className="text-4xl font-black mt-2">{bestItem?.name}</div>
-            <div className="mt-4 pt-4 border-t border-white/20 text-sm">
-              💡 1 WC 可換得 {Math.round(bestItem?.roi).toLocaleString()} 楓幣
-            </div>
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+          <div style={styles.card}>
+            <h3 style={{ marginTop: 0, fontSize: '18px' }}>🏆 最佳效率排行 (ROI)</h3>
+            {results.length > 0 ? results.map((res, index) => (
+              <div key={res.key} style={{ padding: '18px 0', borderBottom: '1px solid #F5F0E9', display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: '700' }}><span style={{ color: index === 0 ? '#D35400' : '#BCB0A1', marginRight: '10px' }}>0{index + 1}</span>{res.name}</span>
+                <span style={{ fontWeight: '800', color: index === 0 ? '#D35400' : '#4E342E' }}>{Math.round(res.roi).toLocaleString()} <small style={{ fontSize: '10px', color: '#BCB0A1' }}>楓幣/TWD</small></span>
+              </div>
+            )) : <div style={{ padding: '40px', textAlign: 'center', color: '#BCB0A1' }}>請在左側輸入價格...</div>}
           </div>
 
-          <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-            <h2 className="text-lg font-bold mb-4">📈 效益排行</h2>
-            <div className="space-y-3">
-              {results.map((item, index) => (
-                <div key={item.id} className={`flex justify-between p-3 rounded-lg ${index === 0 ? 'bg-orange-600/20 border border-orange-600/30' : 'bg-slate-900/50'}`}>
-                  <span>{item.name}</span>
-                  <span className={index === 0 ? 'text-orange-500 font-bold' : 'text-slate-400'}>
-                    {(item.roi / 10000).toFixed(2)} W / WC
-                  </span>
-                </div>
-              ))}
+          <div style={styles.card}>
+            <h3 style={{ marginTop: 0, fontSize: '18px' }}>📊 市場價格波動趨勢</h3>
+            <div style={{ height: '300px', width: '100%', marginTop: '20px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={[{ n: '04/13', p: 310 }, { n: '04/14', p: 325 }, { n: '04/15', p: 320 }]}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F2EEE9" />
+                  <XAxis dataKey="n" axisLine={false} tickLine={false} tick={{ fill: '#BCB0A1', fontSize: 12 }} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 5px 15px rgba(0,0,0,0.1)' }} />
+                  <Line type="monotone" dataKey="p" stroke="#D35400" strokeWidth={4} dot={{ r: 6, fill: '#D35400', stroke: '#fff' }} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
+
+      {/* 使用模組化組件 */}
+      <Footer />
     </div>
   );
 }
