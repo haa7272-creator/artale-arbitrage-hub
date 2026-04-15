@@ -227,7 +227,7 @@ function App() {
             <h3 style={{ marginTop: 0, fontSize: '18px' }}>🏆 最佳效率排行 (ROI)</h3>
             {results.length > 0 ? results.map((res, index) => (
               <div key={res.key} style={{ padding: '18px 0', borderBottom: '1px solid #F5F0E9', display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: '700' }}><span style={{ color: index === 0 ? '#D35400' : '#BCB0A1', marginRight: '10px' }}>0{index + 1}</span>{res.name}</span>
+                <span style={{ fontWeight: '700' }}><span style={{ color: index === 0 ? '#D35400' : '#BCB0A1', marginRight: '10px' }}>{String(index + 1).padStart(2, '0')}</span>{res.name}</span>
                 <span style={{ fontWeight: '800', color: index === 0 ? '#D35400' : '#4E342E' }}>{Math.round(res.roi).toLocaleString()} <small style={{ fontSize: '10px', color: '#BCB0A1' }}>楓幣/TWD</small></span>
               </div>
             )) : <div style={{ padding: '40px', textAlign: 'center', color: '#BCB0A1' }}>請在左側輸入價格...</div>}
