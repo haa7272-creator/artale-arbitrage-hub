@@ -60,6 +60,11 @@ function App() {
       return;
     }
 
+    // --- 關鍵修改：加入填寫者的身分證 ---
+    payload.user_id = user.id;
+    payload.user_name = user.user_metadata?.full_name || '匿名用戶';
+    // ---------------------------------
+
     showToast('⏳ 正在同步數據...', 'loading');
     const { error } = await supabase.from('market_prices').insert([
       itemConfig.reduce((acc, item) => ({
