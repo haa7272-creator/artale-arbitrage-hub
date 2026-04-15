@@ -54,30 +54,33 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // --- 新增：如果沒登入，直接擋掉並彈出提示 ---
+    // 1. 安全檢查：沒登入就不能送出
     if (!user) {
       showToast('⚠️ 請先登入 Discord 才能同步數據', 'error');
       return;
     }
 
-    // --- 關鍵修改：加入填寫者的身分證 ---
+    showToast('⏳ 正在同步數據...', 'loading');
+
+    // 2. 定義 payload (這就是你漏掉的部分)
+    // 我們先收集畫面上所有的價格，並將其轉換成數字
+    const payload = itemConfig.reduce((acc, item) => ({
+      ...acc,
+      [`${item.key}_price`]: parseFloat(prices[item.key]) || null,
+    }), {});
+
+    // 3. 貼上「身分標籤」
     payload.user_id = user.id;
     payload.user_name = user.user_metadata?.full_name || '匿名用戶';
-    // ---------------------------------
 
-    showToast('⏳ 正在同步數據...', 'loading');
-    const { error } = await supabase.from('market_prices').insert([
-      itemConfig.reduce((acc, item) => ({
-        ...acc,
-        [`${item.key}_price`]: parseFloat(prices[item.key]) || null,
-      }), {}),
-    ]);
+    // 4. 正式送出到 Supabase
+    const { error } = await supabase.from('market_prices').insert([payload]);
+
     if (error) {
       showToast(`❌ 同步失敗: ${error.message}`, 'error');
     } else {
       showToast('✅ 數據同步成功！', 'success');
-      // 成功後重新抓取，確保顯示的是資料庫裡的數據
-      fetchLatestPrices();
+      fetchLatestPrices(); // 成功後重新抓取數據
     }
   };
 
