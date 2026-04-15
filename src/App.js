@@ -224,7 +224,7 @@ function App() {
 
         <section style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
           <div style={styles.card}>
-            <h3 style={{ marginTop: 0, fontSize: '18px' }}>🏆 最佳效率排行 (ROI)</h3>
+            <h3 style={{ marginTop: 0, fontSize: '18px' }}>🏆 最佳效益排行 (ROI)</h3>
             {results.length > 0 ? results.map((res, index) => (
               <div key={res.key} style={{ padding: '18px 0', borderBottom: '1px solid #F5F0E9', display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontWeight: '700' }}><span style={{ color: index === 0 ? '#D35400' : '#BCB0A1', marginRight: '10px' }}>{String(index + 1).padStart(2, '0')}</span>{res.name}</span>
